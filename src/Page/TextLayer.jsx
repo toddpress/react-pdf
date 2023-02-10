@@ -145,16 +145,18 @@ export class TextLayerInternal extends PureComponent {
     const container = this.layerElement.current;
 
     const { viewport } = this;
-    const { customTextRenderer, pageIndex, pageNumber } = this.props;
+    const { customTextRenderer, page, pageIndex, pageNumber } = this.props;
 
     // If another rendering is in progress, let's cancel it
     cancelRunningTask(this.runningTask);
 
     container.innerHTML = '';
 
+    const textContentSource = page.streamTextContent();
+
     const parameters = {
       container,
-      textContent,
+      textContentSource,
       viewport,
     };
 
