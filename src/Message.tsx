@@ -1,7 +1,13 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
-export default function Message({ children, type }) {
+export default function Message({
+  children,
+  type,
+}: {
+  children: React.ReactNode;
+  type: 'error' | 'loading' | 'no-data';
+}) {
   return <div className={`react-pdf__message react-pdf__message--${type}`}>{children}</div>;
 }
 

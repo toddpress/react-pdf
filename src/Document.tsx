@@ -8,7 +8,7 @@ import makeCancellable from 'make-cancellable-promise';
 import clsx from 'clsx';
 import invariant from 'tiny-invariant';
 import warning from 'tiny-warning';
-import * as pdfjs from 'pdfjs-dist/build/pdf';
+import pdfjs from 'pdfjs-dist';
 
 import DocumentContext from './DocumentContext';
 
@@ -31,15 +31,65 @@ import {
 
 import { eventProps, isClassName, isFile as isFileProp, isRef } from './shared/propTypes';
 
+import type { PDFDocumentProxy } from 'pdfjs-dist';
+import type { Dest } from './shared/types';
+import type { DocumentInitParameters } from 'pdfjs-dist/types/src/display/api';
+
 const { PDFDataRangeTransport } = pdfjs;
 
-export default class Document extends PureComponent {
+type FunctionOrNode = React.ReactNode | (() => React.ReactNode);
+
+type Props = {
+  // TODO: All event props
+  children?: React.ReactNode;
+  className?: string | string[];
+  error?: FunctionOrNode;
+  externalLinkRel?: string;
+  externalLinkTarget?: string;
+  file:
+    | string
+    | ArrayBuffer
+    | {
+        data?: object | string;
+        httpHeaders?: object;
+        range?: object;
+        url?: string;
+        withCredentials?: boolean;
+      };
+  imageResourcesPath?: string;
+  inputRef?: React.RefObject<any>;
+  loading?: FunctionOrNode;
+  noData?: FunctionOrNode;
+  options: DocumentInitParameters;
+  onItemClick?: (params: { dest: Dest; pageIndex: number; pageNumber: number }) => void;
+  onLoadError?: (error: Error) => void;
+  onLoadProgress?: (progressData: { loaded: number; total: number }) => void;
+  onLoadSucces?: (pdf: PDFDocumentProxy) => void;
+  onPassword?: (callback: (password: string) => void, reason: any) => void;
+  onSourceError?: (error: Error) => void;
+  onSourceSuccess?: () => void;
+  rotate?: number;
+};
+
+type State = {
+  pdf: PDFDocumentProxy | null;
+};
+
+export default class Document extends PureComponent<Props, State> {
   state = {
     pdf: null,
   };
 
   viewer = {
-    scrollPageIntoView: ({ dest, pageIndex, pageNumber }) => {
+    scrollPageIntoView: ({
+      dest,
+      pageIndex,
+      pageNumber,
+    }: {
+      dest: Dest;
+      pageIndex: number;
+      pageNumber: number;
+    }) => {
       // Handling jumping to internal links target
       const { onItemClick } = this.props;
 
@@ -67,6 +117,12 @@ export default class Document extends PureComponent {
 
   linkService = new LinkService();
 
+  loadingTask: any = null;
+
+  pages: Element[] = [];
+
+  runningTask: any = null;
+
   componentDidMount() {
     this.loadDocument();
     this.setupLinkService();
@@ -74,6 +130,7 @@ export default class Document extends PureComponent {
 
   componentDidUpdate(prevProps) {
     const { file } = this.props;
+
     if (file !== prevProps.file) {
       this.loadDocument();
     }
@@ -344,7 +401,7 @@ Document.defaultProps = {
   error: 'Failed to load PDF file.',
   loading: 'Loading PDF…',
   noData: 'No PDF file specified.',
-  onPassword: (callback, reason) => {
+  onPassword: (callback: (password: string | null) => void, reason: any) => {
     switch (reason) {
       case PasswordResponses.NEED_PASSWORD: {
         // eslint-disable-next-line no-alert

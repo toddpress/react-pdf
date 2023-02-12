@@ -10,7 +10,13 @@ import { isDefined } from './shared/utils';
 
 import { isPdf } from './shared/propTypes';
 
-export class OutlineItemInternal extends PureComponent {
+import type { PDFDocumentProxy } from 'pdfjs-dist';
+
+type Props = {
+  pdf: PDFDocumentProxy;
+};
+
+export class OutlineItemInternal extends PureComponent<Props> {
   getDestination = () =>
     new Promise((resolve, reject) => {
       if (isDefined(this.destination)) {

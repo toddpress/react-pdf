@@ -1,6 +1,8 @@
 import invariant from 'tiny-invariant';
 import warning from 'tiny-warning';
 
+import type { RunningTask } from './types';
+
 /**
  * Checks if we're running in a browser environment.
  */
@@ -11,13 +13,16 @@ export const isBrowser = typeof document !== 'undefined';
  */
 export const isLocalFileSystem = isBrowser && window.location.protocol === 'file:';
 
+function isUndefined(variable: unknown): variable is undefined {
+  return typeof variable === 'undefined';
+}
 /**
  * Checks whether a variable is defined.
  *
  * @param {*} variable Variable to check
  */
-export function isDefined(variable) {
-  return typeof variable !== 'undefined';
+export function isDefined(variable: unknown) {
+  return !isUndefined(variable);
 }
 
 /**
@@ -25,7 +30,7 @@ export function isDefined(variable) {
  *
  * @param {*} variable Variable to check
  */
-export function isProvided(variable) {
+export function isProvided(variable: unknown) {
   return isDefined(variable) && variable !== null;
 }
 
@@ -34,7 +39,7 @@ export function isProvided(variable) {
  *
  * @param {*} variable Variable to check
  */
-export function isString(variable) {
+export function isString(variable: unknown): variable is string {
   return typeof variable === 'string';
 }
 
@@ -43,7 +48,7 @@ export function isString(variable) {
  *
  * @param {*} variable Variable to check
  */
-export function isArrayBuffer(variable) {
+export function isArrayBuffer(variable: unknown): variable is ArrayBuffer {
   return variable instanceof ArrayBuffer;
 }
 
@@ -52,7 +57,7 @@ export function isArrayBuffer(variable) {
  *
  * @param {*} variable Variable to check
  */
-export function isBlob(variable) {
+export function isBlob(variable: unknown): variable is Blob {
   invariant(isBrowser, 'isBlob can only be used in a browser environment');
 
   return variable instanceof Blob;
@@ -63,7 +68,7 @@ export function isBlob(variable) {
  *
  * @param {*} variable Variable to check
  */
-export function isFile(variable) {
+export function isFile(variable: unknown): variable is File {
   invariant(isBrowser, 'isFile can only be used in a browser environment');
 
   return variable instanceof File;
@@ -74,14 +79,19 @@ export function isFile(variable) {
  *
  * @param {string} str String to check
  */
-export function isDataURI(str) {
+export function isDataURI(str: string) {
   return isString(str) && /^data:/.test(str);
 }
 
-export function dataURItoByteString(dataURI) {
+export function dataURItoByteString(dataURI: string) {
   invariant(isDataURI(dataURI), 'Invalid data URI.');
 
   const [headersString, dataString] = dataURI.split(',');
+
+  if (!headersString || !dataString) {
+    throw new Error('Invalid data URI.');
+  }
+
   const headers = headersString.split(';');
 
   if (headers.indexOf('base64') !== -1) {
@@ -112,11 +122,13 @@ export function displayWorkerWarning() {
   );
 }
 
-export function cancelRunningTask(runningTask) {
-  if (runningTask && runningTask.cancel) runningTask.cancel();
+export function cancelRunningTask(runningTask: RunningTask) {
+  if (runningTask && runningTask.cancel) {
+    runningTask.cancel();
+  }
 }
 
-export function makePageCallback(page, scale) {
+export function makePageCallback(page: object, scale: number) {
   Object.defineProperty(page, 'width', {
     get() {
       return this.view[2] * scale;
@@ -144,11 +156,11 @@ export function makePageCallback(page, scale) {
   return page;
 }
 
-export function isCancelException(error) {
+export function isCancelException(error: Error) {
   return error.name === 'RenderingCancelledException';
 }
 
-export function loadFromFile(file) {
+export function loadFromFile(file: File) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
@@ -157,7 +169,11 @@ export function loadFromFile(file) {
     };
 
     reader.onerror = (event) => {
-      const { error } = event.target;
+      if (!event.target) {
+        return reject(new Error('Error while reading a file.'));
+      }
+
+      const error = event.target.error as DOMException;
 
       switch (error.code) {
         case error.NOT_FOUND_ERR:
